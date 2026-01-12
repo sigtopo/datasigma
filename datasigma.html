@@ -68,7 +68,7 @@
       overflow: hidden;
     }
     
-    /* الشريط الجانبي */
+    /* الشريط الجانبي المحسّن */
     .sidebar {
       width: 420px;
       min-width: 420px;
@@ -217,7 +217,7 @@
       border-right: 4px solid #ef4444;
     }
     
-    /* Popup */
+    /* Popup محسن */
     .ol-popup {
       position: absolute;
       background-color: white;
@@ -256,7 +256,7 @@
       border-bottom: none;
     }
     
-    /* زر الإجراء الرئيسي (يستخدم في الخريطة أيضاً) */
+    /* زر الإجراء الرئيسي */
     .action-btn {
       width: 100%;
       padding: 1rem;
@@ -367,130 +367,30 @@
       color: #94a3b8;
       margin-top: 0.25rem;
     }
-
-    /* زر فتح/إغلاق القائمة في الجوال */
-    .sidebar-toggle-btn {
-      display: none;
-    }
-
+    
     /* تحسينات للجوال */
     @media (max-width: 768px) {
       #app {
         flex-direction: column;
       }
-
-      /* القائمة تنتقل يسار الشاشة وتفتح/تغلق */
+      
       .sidebar {
-        position: absolute;
-        inset-block-start: 0;
-        inset-inline-start: 0;
-        width: 80%;
-        max-width: 360px;
-        min-width: auto;
-        height: 100%;
-        transform: translateX(-100%);
-        transition: transform 0.3s ease;
-        z-index: 200;
-      }
-
-      .sidebar.sidebar-open {
-        transform: translateX(0);
-      }
-
-      #map {
-        flex: 1;
-        position: relative;
-      }
-
-      /* زر إظهار/إخفاء القائمة في الأعلى (يسار لأن الاتجاه RTL) */
-      .sidebar-toggle-btn {
-        display: flex;
-        position: absolute;
-        top: 0.75rem;
-        inset-inline-start: 0.75rem;
-        z-index: 300;
-        background: white;
-        border: 1px solid #e2e8f0;
-        border-radius: 999px;
-        padding: 0.5rem 0.7rem;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-        cursor: pointer;
-        align-items: center;
-        justify-content: center;
-      }
-
-      .sidebar-toggle-btn i {
-        font-size: 1.1rem;
-        color: #1f2937;
-      }
-
-      /* توزيع أزرار التحكم في الخريطة */
-      .map-controls {
-        position: absolute;
-        top: auto;
-        left: 50%;
-        bottom: 1rem;
-        transform: translateX(-50%);
-        z-index: 250;
-        display: flex;
-        flex-direction: row;
-        gap: 0.5rem;
-        flex-wrap: wrap;
-        justify-content: center;
-      }
-
-      .control-btn {
-        padding: 0.55rem 0.7rem;
-        border-radius: 999px;
-      }
-
-      .control-btn span {
-        display: none;
-      }
-
-      /* أيقونة الخلفيات في الأعلى يمين */
-      #basemap-toggle {
-        position: absolute;
-        top: 0.75rem;
-        inset-inline-end: 0.75rem;
-        z-index: 260;
-      }
-
-      /* زر الرسم أعلى وسط الخريطة */
-      #draw-toggle {
-        position: absolute;
-        top: 0.75rem;
-        inset-inline: 50%;
-        transform: translateX(-50%);
-        z-index: 260;
-      }
-
-      /* زر الحذف أسفل (يسار/وسط ضمن map-controls) */
-      #clear-btn {
-        position: static;
-      }
-
-      /* زر التحميل/العرض أسفل من الرسم والحذف داخل map-controls */
-      #map-action-btn-wrapper {
         width: 100%;
-        display: flex;
-        justify-content: center;
+        min-width: 100%;
+        height: 50%;
       }
-
-      #map-action-btn {
-        width: auto;
-        min-width: 160px;
-        padding-inline: 1rem;
+      
+      .map-controls {
+        flex-direction: row;
+        flex-wrap: wrap;
+        top: auto;
+        bottom: 1rem;
+        left: 50%;
+        transform: translateX(-50%);
       }
-
-      /* قائمة الخلفيات تبقى ملتصقة بالزر */
-      .basemap-dropdown {
-        position: static;
-      }
-
-      .basemap-menu {
-        top: calc(100% + 8px);
-        right: 0;
+      
+      .control-btn span:not(.icon) {
+        display: none;
       }
     }
   </style>
@@ -616,11 +516,6 @@
 
     <!-- الخريطة -->
     <div id="map">
-      <!-- زر إظهار/إخفاء القائمة في الهاتف -->
-      <button id="sidebar-toggle" class="sidebar-toggle-btn">
-        <i class="fas fa-bars"></i>
-      </button>
-
       <!-- عناصر التحكم في الخريطة -->
       <div class="map-controls">
         <button id="draw-toggle" class="control-btn">
@@ -632,15 +527,7 @@
           <i class="fas fa-trash-alt"></i>
           <span>مسح الكل</span>
         </button>
-
-        <!-- زر التحميل/العرض في الخريطة أسفل من الرسم والحذف (يتم التحكم فيه عبر CSS) -->
-        <div id="map-action-btn-wrapper">
-          <button id="map-action-btn" class="action-btn" disabled>
-            <i class="fas fa-download"></i>
-            <span>جلب البيانات</span>
-          </button>
-        </div>
-
+        
         <div class="basemap-dropdown">
           <button id="basemap-toggle" class="control-btn">
             <i class="fas fa-layer-group"></i>
@@ -663,6 +550,11 @@
             </div>
           </div>
         </div>
+        
+        <button id="fullscreen-btn" class="control-btn">
+          <i class="fas fa-expand"></i>
+          <span>ملء الشاشة</span>
+        </button>
       </div>
 
       <!-- Popup -->
@@ -741,12 +633,7 @@
       popupCloser: document.getElementById("popup-closer"),
       drawToggle: document.getElementById("draw-toggle"),
       clearBtn: document.getElementById("clear-btn"),
-      sidebar: document.querySelector(".sidebar"),
-      sidebarToggle: document.getElementById("sidebar-toggle"),
-      // زر الأكشن في الشريط الجانبي (يبقى كما هو منطقياً)
-      actionBtnSidebar: document.getElementById("action-btn"),
-      // زر الأكشن في الخريطة
-      actionBtnMap: document.getElementById("map-action-btn"),
+      actionBtn: document.getElementById("action-btn"),
       loadingOverlay: document.getElementById("loading-overlay"),
       loadingProgress: document.getElementById("loading-progress"),
       loadingMessage: document.getElementById("loading-message"),
@@ -766,6 +653,7 @@
       totalSize: document.getElementById("total-size"),
       exportFormat: document.getElementById("export-format"),
       queryTimeout: document.getElementById("query-timeout"),
+      fullscreenBtn: document.getElementById("fullscreen-btn"),
       hintText: document.getElementById("hint-text")
     };
 
@@ -953,12 +841,14 @@
         const geometry = event.feature.getGeometry();
         const coords = geometry.getCoordinates()[0];
         
+        // Calculate area
         const area = getArea(geometry);
-        state.stats.area = Math.round(area / 1000000);
+        state.stats.area = Math.round(area / 1000000); // Convert to km²
         
+        // Convert to lat/lon array for Overpass
         const lonLatCoords = coords.map((c) => {
           const ll = toLonLat(c);
-          return [ll[1], ll[0]];
+          return [ll[1], ll[0]]; // [lat, lon]
         });
         
         state.selectedPolygon = lonLatCoords;
@@ -1041,8 +931,10 @@ out skel qt;
         const geojson = osmtogeojson.default ? osmtogeojson.default(data) : osmtogeojson(data);
         state.osmData = geojson;
         
+        // Update statistics
         updateStatistics(geojson);
         
+        // Add features to map
         const format = new GeoJSON({ featureProjection: "EPSG:3857" });
         resultsSource.clear();
         resultsSource.addFeatures(format.readFeatures(geojson));
@@ -1081,11 +973,13 @@ out skel qt;
         }
       });
       
+      // Update UI
       elements.pointsCount.textContent = state.stats.points;
       elements.linesCount.textContent = state.stats.lines;
       elements.polygonsCount.textContent = state.stats.polygons;
       elements.featureCount.textContent = state.stats.points + state.stats.lines + state.stats.polygons;
       
+      // Calculate data size
       const dataSize = JSON.stringify(geojson).length;
       const sizeKB = (dataSize / 1024).toFixed(1);
       elements.totalSize.textContent = `${sizeKB} KB`;
@@ -1105,6 +999,7 @@ out skel qt;
           mimeType = "application/json";
           break;
         case "kml":
+          // Simple KML conversion
           data = convertToKML(state.osmData);
           filename = "osm_data.kml";
           mimeType = "application/vnd.google-earth.kml+xml";
@@ -1130,6 +1025,7 @@ out skel qt;
     }
 
     function convertToKML(geojson) {
+      // Basic KML conversion - for production use a proper library
       const features = geojson.features || [];
       const placemarks = features.map(feature => {
         const props = feature.properties || {};
@@ -1169,18 +1065,6 @@ out skel qt;
       });
     }
 
-    // مزامنة حالة زر الأكشن بين الشريط الجانبي والخريطة
-    function syncActionButtons(disabled, innerHTML, isSuccess) {
-      elements.actionBtnSidebar.disabled = disabled;
-      elements.actionBtnMap.disabled = disabled;
-
-      elements.actionBtnSidebar.innerHTML = innerHTML;
-      elements.actionBtnMap.innerHTML = innerHTML;
-
-      elements.actionBtnSidebar.classList.toggle("success", isSuccess);
-      elements.actionBtnMap.classList.toggle("success", isSuccess);
-    }
-
     // UI Updates
     function updateUI() {
       if (state.selectedPolygon) {
@@ -1188,28 +1072,25 @@ out skel qt;
         elements.areaStatus.className = "text-sm font-medium text-emerald-300";
         
         if (state.osmData) {
-          syncActionButtons(
-            false,
-            '<i class="fas fa-file-download"></i><span>تحميل البيانات</span>',
-            true
-          );
+          elements.actionBtn.innerHTML = '<i class="fas fa-file-download"></i><span>تحميل البيانات</span>';
+          elements.actionBtn.classList.add("success");
           elements.hintText.innerHTML = '<i class="fas fa-check-circle mr-1"></i> جاهز للتحميل';
           elements.hintText.className = "text-xs text-center mt-3 text-emerald-400";
         } else {
-          syncActionButtons(
-            false,
-            '<i class="fas fa-download"></i><span>جلب البيانات</span>',
-            false
-          );
+          elements.actionBtn.innerHTML = '<i class="fas fa-download"></i><span>جلب البيانات</span>';
+          elements.actionBtn.classList.remove("success");
           elements.hintText.innerHTML = '<i class="fas fa-database mr-1"></i> انقر لجلب البيانات من OSM';
           elements.hintText.className = "text-xs text-center mt-3 text-sky-400";
         }
+        
+        elements.actionBtn.disabled = false;
       } else {
         elements.areaStatus.textContent = "غير محددة";
         elements.areaStatus.className = "text-sm font-medium text-amber-300";
-        syncActionButtons(true, '<i class="fas fa-download"></i><span>جلب البيانات</span>', false);
+        elements.actionBtn.disabled = true;
         elements.hintText.innerHTML = '<i class="fas fa-info-circle mr-1"></i> حدد منطقة على الخريطة لبدء الاستخراج';
         elements.hintText.className = "text-xs text-center mt-3 text-slate-400";
+        elements.actionBtn.classList.remove("success");
       }
     }
 
@@ -1220,6 +1101,7 @@ out skel qt;
         elements.loadingMessage.textContent = message;
         elements.loadingProgress.style.width = "30%";
         
+        // Simulate progress updates
         let progress = 30;
         const interval = setInterval(() => {
           if (progress < 90) {
@@ -1253,20 +1135,10 @@ out skel qt;
       updateStatistics({ features: [] });
       notification.show("info", "تم المسح", "تم حذف جميع البيانات المحددة");
     });
-
-    // زر الأكشن من الشريط الجانبي
-    elements.actionBtnSidebar.addEventListener("click", async () => {
+    
+    elements.actionBtn.addEventListener("click", async () => {
       if (!state.selectedPolygon) return;
-      if (state.osmData) {
-        exportData();
-      } else {
-        await fetchOSMData();
-      }
-    });
-
-    // زر الأكشن من الخريطة
-    elements.actionBtnMap.addEventListener("click", async () => {
-      if (!state.selectedPolygon) return;
+      
       if (state.osmData) {
         exportData();
       } else {
@@ -1302,10 +1174,12 @@ out skel qt;
         e.stopPropagation();
         const index = parseInt(item.getAttribute("data-index"));
         
+        // Update layers
         baseLayers.forEach((layer, idx) => {
           layer.setVisible(idx === index);
         });
         
+        // Update UI
         document.querySelectorAll(".basemap-item").forEach(i => i.classList.remove("active"));
         item.classList.add("active");
         
@@ -1313,6 +1187,21 @@ out skel qt;
         
         notification.show("info", "تم تغيير الخلفية", baseLayers[index].get("title"));
       });
+    });
+    
+    // Fullscreen functionality
+    elements.fullscreenBtn.addEventListener("click", () => {
+      if (!document.fullscreenElement) {
+        elements.map.requestFullscreen?.() || 
+        elements.map.webkitRequestFullscreen?.() || 
+        elements.map.msRequestFullscreen?.();
+        elements.fullscreenBtn.innerHTML = '<i class="fas fa-compress"></i><span>خروج من ملء الشاشة</span>';
+      } else {
+        document.exitFullscreen?.() || 
+        document.webkitExitFullscreen?.() || 
+        document.msExitFullscreen?.();
+        elements.fullscreenBtn.innerHTML = '<i class="fas fa-expand"></i><span>ملء الشاشة</span>';
+      }
     });
     
     // Popup management
@@ -1359,24 +1248,29 @@ out skel qt;
         popupOverlay.setPosition(undefined);
       }
     });
-
-    // Sidebar toggle (mobile)
-    elements.sidebarToggle.addEventListener("click", () => {
-      elements.sidebar.classList.toggle("sidebar-open");
-    });
-
+    
     // Close basemap menu when clicking outside
     document.addEventListener("click", () => {
       elements.basemapMenu.style.display = "none";
     });
-
+    
+    // Prevent closing when clicking inside the menu
     elements.basemapMenu.addEventListener("click", (e) => {
       e.stopPropagation();
     });
-
-    // Initial UI
+    
+    // Initialize
     updateUI();
     updateStatistics({ features: [] });
+    
+    // Welcome notification
+    setTimeout(() => {
+      notification.show(
+        "info", 
+        "مرحباً بك في مستخرج بيانات OSM", 
+        "استخدم أداة الرسم لتحديد المنطقة المراد استخراج بياناتها"
+      );
+    }, 1000);
   </script>
 </body>
 </html>
