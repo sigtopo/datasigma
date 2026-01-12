@@ -367,29 +367,123 @@
       color: #94a3b8;
       margin-top: 0.25rem;
     }
-    
+
     /* تحسينات للجوال */
     @media (max-width: 768px) {
       #app {
         flex-direction: column;
       }
-      
+
       .sidebar {
+        position: absolute;
+        inset-inline-start: 0;
+        inset-block-start: 0;
         width: 100%;
         min-width: 100%;
-        height: 50%;
+        height: 60%;
+        transform: translateY(-100%);
+        transition: transform 0.3s ease;
+        z-index: 200;
       }
-      
+
+      /* إظهار الشريط عند إزالة الكلاس */
+      .sidebar.sidebar-visible {
+        transform: translateY(0);
+      }
+
+      #map {
+        flex: 1;
+        position: relative;
+      }
+
+      /* زر إظهار/إخفاء الشريط الجانبي في أعلى الخريطة */
+      .sidebar-toggle-btn {
+        position: absolute;
+        top: 0.75rem;
+        inset-inline-start: 0.75rem;
+        z-index: 300;
+        background: white;
+        border: 1px solid #e2e8f0;
+        border-radius: 999px;
+        padding: 0.5rem 0.7rem;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        cursor: pointer;
+      }
+
+      .sidebar-toggle-btn i {
+        font-size: 1.1rem;
+        color: #1f2937;
+      }
+
+      /* توزيع أزرار التحكم على الخريطة في الجوال */
       .map-controls {
+        position: absolute;
+        inset-block: auto 0.75rem;
+        inset-inline: 0;
+        z-index: 250;
+        display: flex;
         flex-direction: row;
+        justify-content: center;
+        gap: 0.5rem;
         flex-wrap: wrap;
-        top: auto;
-        bottom: 1rem;
-        left: 50%;
+        transform: none;
+      }
+
+      .control-btn {
+        padding: 0.55rem 0.7rem;
+        border-radius: 999px;
+      }
+
+      .control-btn span:not(.icon) {
+        display: none;
+      }
+
+      /* زر الخلفية أعلى يمين الخريطة كأيقونة فقط */
+      #basemap-toggle {
+        position: absolute;
+        top: 0.75rem;
+        inset-inline-end: 0.75rem;
+      }
+
+      /* زر رسم المنطقة أعلى وسط الخريطة */
+      #draw-toggle {
+        position: absolute;
+        top: 0.75rem;
+        inset-inline: 50%;
         transform: translateX(-50%);
       }
-      
-      .control-btn span:not(.icon) {
+
+      /* زر مسح الكل أسفل يسار الخريطة */
+      #clear-btn {
+        position: absolute;
+        bottom: 0.9rem;
+        inset-inline-start: 1rem;
+      }
+
+      /* زر جلب/تحميل البيانات أسفل يمين الخريطة قرب مسح الكل */
+      #action-btn {
+        position: absolute;
+        bottom: 0.9rem;
+        inset-inline-end: 1rem;
+        width: auto;
+        max-width: 60%;
+        padding-inline: 1rem;
+      }
+
+      /* تعديل تراكب قائمة الخلفيات */
+      .basemap-dropdown {
+        position: static;
+      }
+
+      .basemap-menu {
+        top: calc(100% + 8px);
+        right: 0;
+      }
+
+      /* إخفاء النص في زر الخلفية / رسم / تكبير في الجوال */
+      #basemap-toggle span,
+      #draw-toggle span,
+      #fullscreen-btn span {
         display: none;
       }
     }
@@ -397,7 +491,7 @@
 </head>
 <body>
   <div id="app">
-    <!-- الشريط الجانبي -->
+    <!-- الشريط الجانبي (يكون مخفياً في الجوال ويظهر بالزر) -->
     <div class="sidebar">
       <div class="sidebar-header">
         <div class="flex items-center gap-3 mb-2">
@@ -516,6 +610,11 @@
 
     <!-- الخريطة -->
     <div id="map">
+      <!-- زر فتح/إغلاق القائمة في الجوال -->
+      <button id="sidebar-toggle" class="sidebar-toggle-btn">
+        <i class="fas fa-sliders-h"></i>
+      </button>
+
       <!-- عناصر التحكم في الخريطة -->
       <div class="map-controls">
         <button id="draw-toggle" class="control-btn">
@@ -654,7 +753,9 @@
       exportFormat: document.getElementById("export-format"),
       queryTimeout: document.getElementById("query-timeout"),
       fullscreenBtn: document.getElementById("fullscreen-btn"),
-      hintText: document.getElementById("hint-text")
+      hintText: document.getElementById("hint-text"),
+      sidebar: document.querySelector(".sidebar"),
+      sidebarToggle: document.getElementById("sidebar-toggle")
     };
 
     // App State
@@ -841,14 +942,12 @@
         const geometry = event.feature.getGeometry();
         const coords = geometry.getCoordinates()[0];
         
-        // Calculate area
         const area = getArea(geometry);
-        state.stats.area = Math.round(area / 1000000); // Convert to km²
+        state.stats.area = Math.round(area / 1000000);
         
-        // Convert to lat/lon array for Overpass
         const lonLatCoords = coords.map((c) => {
           const ll = toLonLat(c);
-          return [ll[1], ll[0]]; // [lat, lon]
+          return [ll[1], ll[0]];
         });
         
         state.selectedPolygon = lonLatCoords;
@@ -931,10 +1030,8 @@ out skel qt;
         const geojson = osmtogeojson.default ? osmtogeojson.default(data) : osmtogeojson(data);
         state.osmData = geojson;
         
-        // Update statistics
         updateStatistics(geojson);
         
-        // Add features to map
         const format = new GeoJSON({ featureProjection: "EPSG:3857" });
         resultsSource.clear();
         resultsSource.addFeatures(format.readFeatures(geojson));
@@ -973,13 +1070,11 @@ out skel qt;
         }
       });
       
-      // Update UI
       elements.pointsCount.textContent = state.stats.points;
       elements.linesCount.textContent = state.stats.lines;
       elements.polygonsCount.textContent = state.stats.polygons;
       elements.featureCount.textContent = state.stats.points + state.stats.lines + state.stats.polygons;
       
-      // Calculate data size
       const dataSize = JSON.stringify(geojson).length;
       const sizeKB = (dataSize / 1024).toFixed(1);
       elements.totalSize.textContent = `${sizeKB} KB`;
@@ -999,7 +1094,6 @@ out skel qt;
           mimeType = "application/json";
           break;
         case "kml":
-          // Simple KML conversion
           data = convertToKML(state.osmData);
           filename = "osm_data.kml";
           mimeType = "application/vnd.google-earth.kml+xml";
@@ -1025,7 +1119,6 @@ out skel qt;
     }
 
     function convertToKML(geojson) {
-      // Basic KML conversion - for production use a proper library
       const features = geojson.features || [];
       const placemarks = features.map(feature => {
         const props = feature.properties || {};
@@ -1101,7 +1194,6 @@ out skel qt;
         elements.loadingMessage.textContent = message;
         elements.loadingProgress.style.width = "30%";
         
-        // Simulate progress updates
         let progress = 30;
         const interval = setInterval(() => {
           if (progress < 90) {
@@ -1174,12 +1266,10 @@ out skel qt;
         e.stopPropagation();
         const index = parseInt(item.getAttribute("data-index"));
         
-        // Update layers
         baseLayers.forEach((layer, idx) => {
           layer.setVisible(idx === index);
         });
         
-        // Update UI
         document.querySelectorAll(".basemap-item").forEach(i => i.classList.remove("active"));
         item.classList.add("active");
         
@@ -1242,35 +1332,29 @@ out skel qt;
       }
     });
     
-    // Close popup when clicking outside
     map.on("click", (evt) => {
       if (!map.hasFeatureAtPixel(evt.pixel)) {
         popupOverlay.setPosition(undefined);
       }
     });
-    
-    // Close basemap menu when clicking outside
+
+    // Sidebar toggle for mobile
+    elements.sidebarToggle.addEventListener("click", () => {
+      const cls = elements.sidebar.classList;
+      if (cls.contains("sidebar-visible")) {
+        cls.remove("sidebar-visible");
+      } else {
+        cls.add("sidebar-visible");
+      }
+    });
+
+    // إغلاق قائمة الخلفيات عند النقر خارجها
     document.addEventListener("click", () => {
       elements.basemapMenu.style.display = "none";
     });
-    
-    // Prevent closing when clicking inside the menu
-    elements.basemapMenu.addEventListener("click", (e) => {
-      e.stopPropagation();
-    });
-    
-    // Initialize
+
+    // تحديث أولي للواجهة
     updateUI();
-    updateStatistics({ features: [] });
-    
-    // Welcome notification
-    setTimeout(() => {
-      notification.show(
-        "info", 
-        "مرحباً بك في مستخرج بيانات OSM", 
-        "استخدم أداة الرسم لتحديد المنطقة المراد استخراج بياناتها"
-      );
-    }, 1000);
   </script>
 </body>
 </html>
