@@ -68,7 +68,7 @@
       overflow: hidden;
     }
     
-    /* الشريط الجانبي المحسّن */
+    /* الشريط الجانبي */
     .sidebar {
       width: 420px;
       min-width: 420px;
@@ -217,7 +217,7 @@
       border-right: 4px solid #ef4444;
     }
     
-    /* Popup محسن */
+    /* Popup */
     .ol-popup {
       position: absolute;
       background-color: white;
@@ -256,7 +256,7 @@
       border-bottom: none;
     }
     
-    /* زر الإجراء الرئيسي */
+    /* زر الإجراء الرئيسي (يستخدم في الخريطة أيضاً) */
     .action-btn {
       width: 100%;
       padding: 1rem;
@@ -368,27 +368,33 @@
       margin-top: 0.25rem;
     }
 
+    /* زر فتح/إغلاق القائمة في الجوال */
+    .sidebar-toggle-btn {
+      display: none;
+    }
+
     /* تحسينات للجوال */
     @media (max-width: 768px) {
       #app {
         flex-direction: column;
       }
 
+      /* القائمة تنتقل يسار الشاشة وتفتح/تغلق */
       .sidebar {
         position: absolute;
-        inset-inline-start: 0;
         inset-block-start: 0;
-        width: 100%;
-        min-width: 100%;
-        height: 60%;
-        transform: translateY(-100%);
+        inset-inline-start: 0;
+        width: 80%;
+        max-width: 360px;
+        min-width: auto;
+        height: 100%;
+        transform: translateX(-100%);
         transition: transform 0.3s ease;
         z-index: 200;
       }
 
-      /* إظهار الشريط عند إزالة الكلاس */
-      .sidebar.sidebar-visible {
-        transform: translateY(0);
+      .sidebar.sidebar-open {
+        transform: translateX(0);
       }
 
       #map {
@@ -396,8 +402,9 @@
         position: relative;
       }
 
-      /* زر إظهار/إخفاء الشريط الجانبي في أعلى الخريطة */
+      /* زر إظهار/إخفاء القائمة في الأعلى (يسار لأن الاتجاه RTL) */
       .sidebar-toggle-btn {
+        display: flex;
         position: absolute;
         top: 0.75rem;
         inset-inline-start: 0.75rem;
@@ -408,6 +415,8 @@
         padding: 0.5rem 0.7rem;
         box-shadow: 0 4px 12px rgba(0,0,0,0.15);
         cursor: pointer;
+        align-items: center;
+        justify-content: center;
       }
 
       .sidebar-toggle-btn i {
@@ -415,18 +424,19 @@
         color: #1f2937;
       }
 
-      /* توزيع أزرار التحكم على الخريطة في الجوال */
+      /* توزيع أزرار التحكم في الخريطة */
       .map-controls {
         position: absolute;
-        inset-block: auto 0.75rem;
-        inset-inline: 0;
+        top: auto;
+        left: 50%;
+        bottom: 1rem;
+        transform: translateX(-50%);
         z-index: 250;
         display: flex;
         flex-direction: row;
-        justify-content: center;
         gap: 0.5rem;
         flex-wrap: wrap;
-        transform: none;
+        justify-content: center;
       }
 
       .control-btn {
@@ -434,43 +444,46 @@
         border-radius: 999px;
       }
 
-      .control-btn span:not(.icon) {
+      .control-btn span {
         display: none;
       }
 
-      /* زر الخلفية أعلى يمين الخريطة كأيقونة فقط */
+      /* أيقونة الخلفيات في الأعلى يمين */
       #basemap-toggle {
         position: absolute;
         top: 0.75rem;
         inset-inline-end: 0.75rem;
+        z-index: 260;
       }
 
-      /* زر رسم المنطقة أعلى وسط الخريطة */
+      /* زر الرسم أعلى وسط الخريطة */
       #draw-toggle {
         position: absolute;
         top: 0.75rem;
         inset-inline: 50%;
         transform: translateX(-50%);
+        z-index: 260;
       }
 
-      /* زر مسح الكل أسفل يسار الخريطة */
+      /* زر الحذف أسفل (يسار/وسط ضمن map-controls) */
       #clear-btn {
-        position: absolute;
-        bottom: 0.9rem;
-        inset-inline-start: 1rem;
+        position: static;
       }
 
-      /* زر جلب/تحميل البيانات أسفل يمين الخريطة قرب مسح الكل */
-      #action-btn {
-        position: absolute;
-        bottom: 0.9rem;
-        inset-inline-end: 1rem;
+      /* زر التحميل/العرض أسفل من الرسم والحذف داخل map-controls */
+      #map-action-btn-wrapper {
+        width: 100%;
+        display: flex;
+        justify-content: center;
+      }
+
+      #map-action-btn {
         width: auto;
-        max-width: 60%;
+        min-width: 160px;
         padding-inline: 1rem;
       }
 
-      /* تعديل تراكب قائمة الخلفيات */
+      /* قائمة الخلفيات تبقى ملتصقة بالزر */
       .basemap-dropdown {
         position: static;
       }
@@ -479,19 +492,12 @@
         top: calc(100% + 8px);
         right: 0;
       }
-
-      /* إخفاء النص في زر الخلفية / رسم / تكبير في الجوال */
-      #basemap-toggle span,
-      #draw-toggle span,
-      #fullscreen-btn span {
-        display: none;
-      }
     }
   </style>
 </head>
 <body>
   <div id="app">
-    <!-- الشريط الجانبي (يكون مخفياً في الجوال ويظهر بالزر) -->
+    <!-- الشريط الجانبي -->
     <div class="sidebar">
       <div class="sidebar-header">
         <div class="flex items-center gap-3 mb-2">
@@ -610,9 +616,9 @@
 
     <!-- الخريطة -->
     <div id="map">
-      <!-- زر فتح/إغلاق القائمة في الجوال -->
+      <!-- زر إظهار/إخفاء القائمة في الهاتف -->
       <button id="sidebar-toggle" class="sidebar-toggle-btn">
-        <i class="fas fa-sliders-h"></i>
+        <i class="fas fa-bars"></i>
       </button>
 
       <!-- عناصر التحكم في الخريطة -->
@@ -626,7 +632,15 @@
           <i class="fas fa-trash-alt"></i>
           <span>مسح الكل</span>
         </button>
-        
+
+        <!-- زر التحميل/العرض في الخريطة أسفل من الرسم والحذف (يتم التحكم فيه عبر CSS) -->
+        <div id="map-action-btn-wrapper">
+          <button id="map-action-btn" class="action-btn" disabled>
+            <i class="fas fa-download"></i>
+            <span>جلب البيانات</span>
+          </button>
+        </div>
+
         <div class="basemap-dropdown">
           <button id="basemap-toggle" class="control-btn">
             <i class="fas fa-layer-group"></i>
@@ -649,11 +663,6 @@
             </div>
           </div>
         </div>
-        
-        <button id="fullscreen-btn" class="control-btn">
-          <i class="fas fa-expand"></i>
-          <span>ملء الشاشة</span>
-        </button>
       </div>
 
       <!-- Popup -->
@@ -732,7 +741,12 @@
       popupCloser: document.getElementById("popup-closer"),
       drawToggle: document.getElementById("draw-toggle"),
       clearBtn: document.getElementById("clear-btn"),
-      actionBtn: document.getElementById("action-btn"),
+      sidebar: document.querySelector(".sidebar"),
+      sidebarToggle: document.getElementById("sidebar-toggle"),
+      // زر الأكشن في الشريط الجانبي (يبقى كما هو منطقياً)
+      actionBtnSidebar: document.getElementById("action-btn"),
+      // زر الأكشن في الخريطة
+      actionBtnMap: document.getElementById("map-action-btn"),
       loadingOverlay: document.getElementById("loading-overlay"),
       loadingProgress: document.getElementById("loading-progress"),
       loadingMessage: document.getElementById("loading-message"),
@@ -752,10 +766,7 @@
       totalSize: document.getElementById("total-size"),
       exportFormat: document.getElementById("export-format"),
       queryTimeout: document.getElementById("query-timeout"),
-      fullscreenBtn: document.getElementById("fullscreen-btn"),
-      hintText: document.getElementById("hint-text"),
-      sidebar: document.querySelector(".sidebar"),
-      sidebarToggle: document.getElementById("sidebar-toggle")
+      hintText: document.getElementById("hint-text")
     };
 
     // App State
@@ -1158,6 +1169,18 @@ out skel qt;
       });
     }
 
+    // مزامنة حالة زر الأكشن بين الشريط الجانبي والخريطة
+    function syncActionButtons(disabled, innerHTML, isSuccess) {
+      elements.actionBtnSidebar.disabled = disabled;
+      elements.actionBtnMap.disabled = disabled;
+
+      elements.actionBtnSidebar.innerHTML = innerHTML;
+      elements.actionBtnMap.innerHTML = innerHTML;
+
+      elements.actionBtnSidebar.classList.toggle("success", isSuccess);
+      elements.actionBtnMap.classList.toggle("success", isSuccess);
+    }
+
     // UI Updates
     function updateUI() {
       if (state.selectedPolygon) {
@@ -1165,25 +1188,28 @@ out skel qt;
         elements.areaStatus.className = "text-sm font-medium text-emerald-300";
         
         if (state.osmData) {
-          elements.actionBtn.innerHTML = '<i class="fas fa-file-download"></i><span>تحميل البيانات</span>';
-          elements.actionBtn.classList.add("success");
+          syncActionButtons(
+            false,
+            '<i class="fas fa-file-download"></i><span>تحميل البيانات</span>',
+            true
+          );
           elements.hintText.innerHTML = '<i class="fas fa-check-circle mr-1"></i> جاهز للتحميل';
           elements.hintText.className = "text-xs text-center mt-3 text-emerald-400";
         } else {
-          elements.actionBtn.innerHTML = '<i class="fas fa-download"></i><span>جلب البيانات</span>';
-          elements.actionBtn.classList.remove("success");
+          syncActionButtons(
+            false,
+            '<i class="fas fa-download"></i><span>جلب البيانات</span>',
+            false
+          );
           elements.hintText.innerHTML = '<i class="fas fa-database mr-1"></i> انقر لجلب البيانات من OSM';
           elements.hintText.className = "text-xs text-center mt-3 text-sky-400";
         }
-        
-        elements.actionBtn.disabled = false;
       } else {
         elements.areaStatus.textContent = "غير محددة";
         elements.areaStatus.className = "text-sm font-medium text-amber-300";
-        elements.actionBtn.disabled = true;
+        syncActionButtons(true, '<i class="fas fa-download"></i><span>جلب البيانات</span>', false);
         elements.hintText.innerHTML = '<i class="fas fa-info-circle mr-1"></i> حدد منطقة على الخريطة لبدء الاستخراج';
         elements.hintText.className = "text-xs text-center mt-3 text-slate-400";
-        elements.actionBtn.classList.remove("success");
       }
     }
 
@@ -1227,10 +1253,20 @@ out skel qt;
       updateStatistics({ features: [] });
       notification.show("info", "تم المسح", "تم حذف جميع البيانات المحددة");
     });
-    
-    elements.actionBtn.addEventListener("click", async () => {
+
+    // زر الأكشن من الشريط الجانبي
+    elements.actionBtnSidebar.addEventListener("click", async () => {
       if (!state.selectedPolygon) return;
-      
+      if (state.osmData) {
+        exportData();
+      } else {
+        await fetchOSMData();
+      }
+    });
+
+    // زر الأكشن من الخريطة
+    elements.actionBtnMap.addEventListener("click", async () => {
+      if (!state.selectedPolygon) return;
       if (state.osmData) {
         exportData();
       } else {
@@ -1279,21 +1315,6 @@ out skel qt;
       });
     });
     
-    // Fullscreen functionality
-    elements.fullscreenBtn.addEventListener("click", () => {
-      if (!document.fullscreenElement) {
-        elements.map.requestFullscreen?.() || 
-        elements.map.webkitRequestFullscreen?.() || 
-        elements.map.msRequestFullscreen?.();
-        elements.fullscreenBtn.innerHTML = '<i class="fas fa-compress"></i><span>خروج من ملء الشاشة</span>';
-      } else {
-        document.exitFullscreen?.() || 
-        document.webkitExitFullscreen?.() || 
-        document.msExitFullscreen?.();
-        elements.fullscreenBtn.innerHTML = '<i class="fas fa-expand"></i><span>ملء الشاشة</span>';
-      }
-    });
-    
     // Popup management
     elements.popupCloser.addEventListener("click", () => {
       popupOverlay.setPosition(undefined);
@@ -1332,29 +1353,30 @@ out skel qt;
       }
     });
     
+    // Close popup when clicking outside
     map.on("click", (evt) => {
       if (!map.hasFeatureAtPixel(evt.pixel)) {
         popupOverlay.setPosition(undefined);
       }
     });
 
-    // Sidebar toggle for mobile
+    // Sidebar toggle (mobile)
     elements.sidebarToggle.addEventListener("click", () => {
-      const cls = elements.sidebar.classList;
-      if (cls.contains("sidebar-visible")) {
-        cls.remove("sidebar-visible");
-      } else {
-        cls.add("sidebar-visible");
-      }
+      elements.sidebar.classList.toggle("sidebar-open");
     });
 
-    // إغلاق قائمة الخلفيات عند النقر خارجها
+    // Close basemap menu when clicking outside
     document.addEventListener("click", () => {
       elements.basemapMenu.style.display = "none";
     });
 
-    // تحديث أولي للواجهة
+    elements.basemapMenu.addEventListener("click", (e) => {
+      e.stopPropagation();
+    });
+
+    // Initial UI
     updateUI();
+    updateStatistics({ features: [] });
   </script>
 </body>
 </html>
