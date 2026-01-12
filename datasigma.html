@@ -1,0 +1,1276 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <title>نظام استخراج بيانات OpenStreetMap - المغرب</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="أداة متقدمة لاستخراج وتحليل بيانات OSM للمملكة المغربية" />
+  
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            primary: {
+              50: '#eff6ff',
+              100: '#dbeafe',
+              500: '#3b82f6',
+              600: '#2563eb',
+              700: '#1d4ed8',
+            },
+            secondary: {
+              500: '#10b981',
+              600: '#059669',
+            }
+          },
+          fontFamily: {
+            'cairo': ['Cairo', 'sans-serif'],
+          }
+        }
+      }
+    }
+  </script>
+
+  <!-- OpenLayers -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/ol@v10.7.0/ol.css" />
+  
+  <!-- Font Awesome -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;500;600;700;800&display=swap');
+    
+    :root {
+      --color-primary: #3b82f6;
+      --color-primary-dark: #1d4ed8;
+      --color-secondary: #10b981;
+    }
+    
+    * {
+      box-sizing: border-box;
+    }
+    
+    html, body {
+      margin: 0;
+      padding: 0;
+      height: 100%;
+      width: 100%;
+      font-family: 'Cairo', sans-serif;
+      background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+    }
+    
+    #app {
+      height: 100vh;
+      display: flex;
+      flex-direction: row-reverse;
+      overflow: hidden;
+    }
+    
+    /* الشريط الجانبي المحسّن */
+    .sidebar {
+      width: 420px;
+      min-width: 420px;
+      background: linear-gradient(to bottom, #1e293b 0%, #0f172a 100%);
+      border-right: 1px solid rgba(255,255,255,0.1);
+      box-shadow: -5px 0 25px rgba(0,0,0,0.2);
+      z-index: 100;
+      display: flex;
+      flex-direction: column;
+    }
+    
+    .sidebar-header {
+      background: rgba(15, 23, 42, 0.95);
+      border-bottom: 1px solid rgba(255,255,255,0.05);
+      padding: 1.5rem;
+    }
+    
+    .sidebar-content {
+      flex: 1;
+      overflow-y: auto;
+      padding: 1.5rem;
+    }
+    
+    .sidebar-footer {
+      background: rgba(15, 23, 42, 0.95);
+      border-top: 1px solid rgba(255,255,255,0.05);
+      padding: 1.5rem;
+    }
+    
+    /* الخريطة */
+    #map {
+      flex: 1;
+      position: relative;
+    }
+    
+    /* عناصر التحكم في الخريطة */
+    .map-controls {
+      position: absolute;
+      top: 1rem;
+      left: 1rem;
+      z-index: 10;
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+    }
+    
+    .control-btn {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.75rem 1.25rem;
+      background: white;
+      border: 1px solid #e2e8f0;
+      border-radius: 12px;
+      font-family: 'Cairo', sans-serif;
+      font-weight: 600;
+      font-size: 0.875rem;
+      color: #1e293b;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+    }
+    
+    .control-btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 16px rgba(0,0,0,0.12);
+    }
+    
+    .control-btn.active {
+      background: var(--color-primary);
+      color: white;
+      border-color: var(--color-primary);
+    }
+    
+    .control-btn.danger {
+      background: #ef4444;
+      color: white;
+      border-color: #dc2626;
+    }
+    
+    /* بطاقات المعلومات */
+    .info-card {
+      background: rgba(30, 41, 59, 0.7);
+      backdrop-filter: blur(10px);
+      border-radius: 12px;
+      border: 1px solid rgba(255,255,255,0.1);
+      padding: 1.25rem;
+      margin-bottom: 1.25rem;
+    }
+    
+    .info-card h3 {
+      margin: 0 0 0.75rem 0;
+      font-size: 1rem;
+      font-weight: 700;
+      color: #60a5fa;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    
+    /* شريط التقدم */
+    .progress-bar {
+      height: 4px;
+      background: rgba(255,255,255,0.1);
+      border-radius: 2px;
+      overflow: hidden;
+      margin: 1rem 0;
+    }
+    
+    .progress-fill {
+      height: 100%;
+      background: linear-gradient(90deg, #3b82f6, #60a5fa);
+      width: 0%;
+      transition: width 0.3s ease;
+      border-radius: 2px;
+    }
+    
+    /* إشعارات */
+    .notification {
+      position: fixed;
+      bottom: 2rem;
+      left: 50%;
+      transform: translateX(-50%) translateY(100px);
+      background: white;
+      padding: 1rem 1.5rem;
+      border-radius: 12px;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.15);
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      z-index: 1000;
+      opacity: 0;
+      transition: all 0.3s ease;
+    }
+    
+    .notification.show {
+      transform: translateX(-50%) translateY(0);
+      opacity: 1;
+    }
+    
+    .notification.success {
+      border-right: 4px solid #10b981;
+    }
+    
+    .notification.error {
+      border-right: 4px solid #ef4444;
+    }
+    
+    /* Popup محسن */
+    .ol-popup {
+      position: absolute;
+      background-color: white;
+      box-shadow: 0 20px 50px -12px rgba(0,0,0,0.25);
+      padding: 0;
+      border-radius: 16px;
+      border: 1px solid #e2e8f0;
+      min-width: 280px;
+      max-width: 350px;
+      font-family: 'Cairo', sans-serif;
+    }
+    
+    .popup-header {
+      padding: 1rem;
+      background: #f8fafc;
+      border-bottom: 1px solid #e2e8f0;
+      border-radius: 16px 16px 0 0;
+      font-weight: 700;
+      color: #1e293b;
+    }
+    
+    .popup-content {
+      padding: 1rem;
+      max-height: 300px;
+      overflow-y: auto;
+    }
+    
+    .property-row {
+      display: flex;
+      justify-content: space-between;
+      padding: 0.5rem 0;
+      border-bottom: 1px solid #f1f5f9;
+    }
+    
+    .property-row:last-child {
+      border-bottom: none;
+    }
+    
+    /* زر الإجراء الرئيسي */
+    .action-btn {
+      width: 100%;
+      padding: 1rem;
+      background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+      color: white;
+      border: none;
+      border-radius: 12px;
+      font-family: 'Cairo', sans-serif;
+      font-weight: 700;
+      font-size: 0.95rem;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.75rem;
+    }
+    
+    .action-btn:hover:not(:disabled) {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 20px rgba(59, 130, 246, 0.3);
+    }
+    
+    .action-btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+    
+    .action-btn.success {
+      background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+    }
+    
+    /* قائمة الطبقات المنسدلة */
+    .basemap-dropdown {
+      position: relative;
+    }
+    
+    .basemap-menu {
+      position: absolute;
+      top: calc(100% + 8px);
+      right: 0;
+      background: white;
+      border-radius: 12px;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.15);
+      min-width: 200px;
+      overflow: hidden;
+      z-index: 1000;
+      border: 1px solid #e2e8f0;
+    }
+    
+    .basemap-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0.75rem 1rem;
+      cursor: pointer;
+      transition: background 0.2s;
+      border-bottom: 1px solid #f1f5f9;
+    }
+    
+    .basemap-item:hover {
+      background: #f8fafc;
+    }
+    
+    .basemap-item.active {
+      background: #eff6ff;
+      color: #2563eb;
+    }
+    
+    /* مؤشر التحميل */
+    .loader {
+      width: 50px;
+      height: 50px;
+      border: 3px solid #f3f3f3;
+      border-top: 3px solid #3b82f6;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+    }
+    
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+    
+    /* إحصائيات */
+    .stats-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0.75rem;
+      margin-top: 1rem;
+    }
+    
+    .stat-box {
+      background: rgba(30, 41, 59, 0.8);
+      border-radius: 8px;
+      padding: 0.75rem;
+      text-align: center;
+    }
+    
+    .stat-value {
+      font-size: 1.25rem;
+      font-weight: 700;
+      color: white;
+    }
+    
+    .stat-label {
+      font-size: 0.75rem;
+      color: #94a3b8;
+      margin-top: 0.25rem;
+    }
+    
+    /* تحسينات للجوال */
+    @media (max-width: 768px) {
+      #app {
+        flex-direction: column;
+      }
+      
+      .sidebar {
+        width: 100%;
+        min-width: 100%;
+        height: 50%;
+      }
+      
+      .map-controls {
+        flex-direction: row;
+        flex-wrap: wrap;
+        top: auto;
+        bottom: 1rem;
+        left: 50%;
+        transform: translateX(-50%);
+      }
+      
+      .control-btn span:not(.icon) {
+        display: none;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div id="app">
+    <!-- الشريط الجانبي -->
+    <div class="sidebar">
+      <div class="sidebar-header">
+        <div class="flex items-center gap-3 mb-2">
+          <div class="p-2 bg-primary-600 rounded-lg">
+            <i class="fas fa-map-marked-alt text-white text-xl"></i>
+          </div>
+          <div>
+            <h1 class="text-xl font-bold text-white">مستخرج بيانات OSM</h1>
+            <p class="text-sm text-slate-300">المملكة المغربية</p>
+          </div>
+        </div>
+        <p class="text-xs text-slate-400 mt-3">
+          أداة متقدمة لاستخراج وتحليل بيانات OpenStreetMap للمناطق الجغرافية المحددة
+        </p>
+      </div>
+
+      <div class="sidebar-content">
+        <!-- حالة النظام -->
+        <div class="info-card">
+          <h3><i class="fas fa-info-circle"></i> حالة النظام</h3>
+          <div class="space-y-2">
+            <div class="flex justify-between items-center">
+              <span class="text-slate-300 text-sm">المنطقة المحددة:</span>
+              <span id="area-status" class="text-sm font-medium text-amber-300">غير محددة</span>
+            </div>
+            <div class="flex justify-between items-center">
+              <span class="text-slate-300 text-sm">عدد المعالم:</span>
+              <span id="feature-count" class="text-sm font-medium text-emerald-300">0</span>
+            </div>
+            <div class="progress-bar">
+              <div id="progress-fill" class="progress-fill"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- وسوم البحث -->
+        <div class="info-card">
+          <h3><i class="fas fa-tags"></i> تصفية الوسوم</h3>
+          <p class="text-xs text-slate-400 mb-3">
+            اترك الحقل فارغاً لاستخراج كل البيانات، أو حدد وسوماً محددة
+          </p>
+          <div class="space-y-2">
+            <input
+              id="tags-input"
+              type="text"
+              class="w-full bg-slate-800/50 border border-slate-700 rounded-lg px-3 py-2.5 text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+              placeholder="مثال: building, highway, amenity, landuse"
+            />
+            <div class="flex flex-wrap gap-2 mt-2">
+              <button class="tag-preview" data-tag="building">مباني</button>
+              <button class="tag-preview" data-tag="highway">طرق</button>
+              <button class="tag-preview" data-tag="water">مياه</button>
+              <button class="tag-preview" data-tag="landuse">استخدامات أرض</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- إحصائيات البيانات -->
+        <div class="info-card">
+          <h3><i class="fas fa-chart-bar"></i> إحصائيات البيانات</h3>
+          <div class="stats-grid">
+            <div class="stat-box">
+              <div id="points-count" class="stat-value">0</div>
+              <div class="stat-label">نقاط</div>
+            </div>
+            <div class="stat-box">
+              <div id="lines-count" class="stat-value">0</div>
+              <div class="stat-label">خطوط</div>
+            </div>
+            <div class="stat-box">
+              <div id="polygons-count" class="stat-value">0</div>
+              <div class="stat-label">مضلعات</div>
+            </div>
+            <div class="stat-box">
+              <div id="total-size" class="stat-value">0 KB</div>
+              <div class="stat-label">الحجم</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- إعدادات متقدمة -->
+        <div class="info-card">
+          <h3><i class="fas fa-cog"></i> إعدادات متقدمة</h3>
+          <div class="space-y-3">
+            <div>
+              <label class="text-xs text-slate-300 block mb-1">نوع الملف:</label>
+              <select id="export-format" class="w-full bg-slate-800/50 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white">
+                <option value="geojson">GeoJSON</option>
+                <option value="json">JSON خام</option>
+                <option value="kml">KML</option>
+              </select>
+            </div>
+            <div>
+              <label class="text-xs text-slate-300 block mb-1">دقة الاستعلام:</label>
+              <select id="query-timeout" class="w-full bg-slate-800/50 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white">
+                <option value="30">سريع (30 ثانية)</option>
+                <option value="60" selected>متوسط (60 ثانية)</option>
+                <option value="120">بطيء (120 ثانية)</option>
+              </select>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="sidebar-footer">
+        <button id="action-btn" class="action-btn" disabled>
+          <i class="fas fa-download"></i>
+          <span>جلب البيانات</span>
+        </button>
+        <p id="hint-text" class="text-xs text-center mt-3 text-slate-400">
+          <i class="fas fa-info-circle mr-1"></i>
+          حدد منطقة على الخريطة لبدء الاستخراج
+        </p>
+      </div>
+    </div>
+
+    <!-- الخريطة -->
+    <div id="map">
+      <!-- عناصر التحكم في الخريطة -->
+      <div class="map-controls">
+        <button id="draw-toggle" class="control-btn">
+          <i class="fas fa-draw-polygon"></i>
+          <span>رسم منطقة</span>
+        </button>
+        
+        <button id="clear-btn" class="control-btn danger">
+          <i class="fas fa-trash-alt"></i>
+          <span>مسح الكل</span>
+        </button>
+        
+        <div class="basemap-dropdown">
+          <button id="basemap-toggle" class="control-btn">
+            <i class="fas fa-layer-group"></i>
+            <span>الخلفية</span>
+            <i class="fas fa-chevron-down text-xs"></i>
+          </button>
+          <div id="basemap-menu" class="basemap-menu" style="display: none;">
+            <div class="basemap-item active" data-index="0">
+              <span>خريطة OSM قياسية</span>
+              <i class="fas fa-check text-primary-500"></i>
+            </div>
+            <div class="basemap-item" data-index="1">
+              <span>خريطة إنسانية (HOT)</span>
+            </div>
+            <div class="basemap-item" data-index="2">
+              <span>خريطة تضاريس</span>
+            </div>
+            <div class="basemap-item" data-index="3">
+              <span>خريطة ساتلية</span>
+            </div>
+          </div>
+        </div>
+        
+        <button id="fullscreen-btn" class="control-btn">
+          <i class="fas fa-expand"></i>
+          <span>ملء الشاشة</span>
+        </button>
+      </div>
+
+      <!-- Popup -->
+      <div id="popup" class="ol-popup" style="display:none;">
+        <div class="popup-header">
+          <i class="fas fa-info-circle mr-2"></i>
+          تفاصيل المعلم
+          <button id="popup-closer" class="float-left text-slate-400 hover:text-slate-600">
+            <i class="fas fa-times"></i>
+          </button>
+        </div>
+        <div id="popup-content" class="popup-content"></div>
+      </div>
+
+      <!-- نافذة التحميل -->
+      <div id="loading-overlay" class="absolute inset-0 bg-slate-900/70 z-[1000] flex items-center justify-center" style="display:none;">
+        <div class="bg-white p-8 rounded-2xl shadow-2xl max-w-md w-full mx-4">
+          <div class="flex flex-col items-center">
+            <div class="loader mb-6"></div>
+            <h3 class="text-lg font-bold text-slate-800 mb-2">جاري استخراج البيانات</h3>
+            <p class="text-sm text-slate-600 text-center mb-4" id="loading-message">
+              جاري الاتصال بخادم Overpass وجلب البيانات...
+            </p>
+            <div class="w-full bg-slate-200 rounded-full h-2 mb-2">
+              <div id="loading-progress" class="bg-primary-600 h-2 rounded-full" style="width: 0%"></div>
+            </div>
+            <p class="text-xs text-slate-500" id="loading-details">تقدير الوقت: --</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- إشعارات -->
+    <div id="notification" class="notification">
+      <i id="notification-icon" class="fas fa-info-circle text-primary-500"></i>
+      <div>
+        <div id="notification-title" class="font-bold text-sm"></div>
+        <div id="notification-message" class="text-xs text-slate-600"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- importmap -->
+  <script type="importmap">
+  {
+    "imports": {
+      "ol": "https://esm.sh/ol@10.7.0",
+      "ol/": "https://esm.sh/ol@10.7.0/",
+      "osmtogeojson": "https://esm.sh/osmtogeojson@3.0.0-beta.5"
+    }
+  }
+  </script>
+
+  <!-- التطبيق الرئيسي -->
+  <script type="module">
+    import Map from "ol/Map";
+    import View from "ol/View";
+    import TileLayer from "ol/layer/Tile";
+    import VectorLayer from "ol/layer/Vector";
+    import VectorSource from "ol/source/Vector";
+    import OSM from "ol/source/OSM";
+    import XYZ from "ol/source/XYZ";
+    import { fromLonLat, toLonLat } from "ol/proj";
+    import { Draw } from "ol/interaction";
+    import GeoJSON from "ol/format/GeoJSON";
+    import { Style, Fill, Stroke, Circle as CircleStyle } from "ol/style";
+    import Overlay from "ol/Overlay";
+    import osmtogeojson from "osmtogeojson";
+    import { getArea } from "ol/sphere";
+
+    // DOM Elements
+    const elements = {
+      map: document.getElementById("map"),
+      popup: document.getElementById("popup"),
+      popupContent: document.getElementById("popup-content"),
+      popupCloser: document.getElementById("popup-closer"),
+      drawToggle: document.getElementById("draw-toggle"),
+      clearBtn: document.getElementById("clear-btn"),
+      actionBtn: document.getElementById("action-btn"),
+      loadingOverlay: document.getElementById("loading-overlay"),
+      loadingProgress: document.getElementById("loading-progress"),
+      loadingMessage: document.getElementById("loading-message"),
+      loadingDetails: document.getElementById("loading-details"),
+      tagsInput: document.getElementById("tags-input"),
+      basemapToggle: document.getElementById("basemap-toggle"),
+      basemapMenu: document.getElementById("basemap-menu"),
+      notification: document.getElementById("notification"),
+      notificationIcon: document.getElementById("notification-icon"),
+      notificationTitle: document.getElementById("notification-title"),
+      notificationMessage: document.getElementById("notification-message"),
+      areaStatus: document.getElementById("area-status"),
+      featureCount: document.getElementById("feature-count"),
+      pointsCount: document.getElementById("points-count"),
+      linesCount: document.getElementById("lines-count"),
+      polygonsCount: document.getElementById("polygons-count"),
+      totalSize: document.getElementById("total-size"),
+      exportFormat: document.getElementById("export-format"),
+      queryTimeout: document.getElementById("query-timeout"),
+      fullscreenBtn: document.getElementById("fullscreen-btn"),
+      hintText: document.getElementById("hint-text")
+    };
+
+    // App State
+    const state = {
+      drawInteraction: null,
+      selectedPolygon: null,
+      osmData: null,
+      isDrawing: false,
+      stats: {
+        points: 0,
+        lines: 0,
+        polygons: 0,
+        area: 0
+      }
+    };
+
+    // Data Sources
+    const drawSource = new VectorSource();
+    const resultsSource = new VectorSource();
+
+    // Popup Overlay
+    const popupOverlay = new Overlay({
+      element: elements.popup,
+      autoPan: { animation: { duration: 250 } },
+    });
+
+    // Base Layers
+    const baseLayers = [
+      new TileLayer({
+        title: "OSM Standard",
+        visible: true,
+        source: new OSM()
+      }),
+      new TileLayer({
+        title: "HOT Humanitarian",
+        visible: false,
+        source: new XYZ({
+          url: "https://tile-{a-c}.openstreetmap.fr/hot/{z}/{x}/{y}.png",
+          attributions: "© OpenStreetMap contributors, Tiles style by HOT"
+        })
+      }),
+      new TileLayer({
+        title: "Topographic",
+        visible: false,
+        source: new XYZ({
+          url: "https://{a-c}.tile.opentopomap.org/{z}/{x}/{y}.png",
+          attributions: "© OpenStreetMap contributors, SRTM | OpenTopoMap",
+          maxZoom: 17
+        })
+      }),
+      new TileLayer({
+        title: "Satellite",
+        visible: false,
+        source: new XYZ({
+          url: "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
+          attributions: "© Esri, Maxar, Earthstar Geographics"
+        })
+      })
+    ];
+
+    // Map Setup
+    const map = new Map({
+      target: elements.map,
+      layers: [
+        ...baseLayers,
+        new VectorLayer({
+          source: drawSource,
+          style: new Style({
+            fill: new Fill({
+              color: "rgba(59, 130, 246, 0.15)"
+            }),
+            stroke: new Stroke({
+              color: "#3b82f6",
+              width: 3,
+              lineDash: [5, 5]
+            })
+          }),
+          zIndex: 100
+        }),
+        new VectorLayer({
+          source: resultsSource,
+          style: (feature) => {
+            const geometry = feature.getGeometry();
+            const type = geometry.getType();
+            
+            if (type === "Point" || type === "MultiPoint") {
+              return new Style({
+                image: new CircleStyle({
+                  radius: 6,
+                  fill: new Fill({ color: "#ef4444" }),
+                  stroke: new Stroke({ color: "#fff", width: 2 })
+                })
+              });
+            } else if (type === "LineString" || type === "MultiLineString") {
+              return new Style({
+                stroke: new Stroke({
+                  color: "#10b981",
+                  width: 3
+                })
+              });
+            } else {
+              return new Style({
+                fill: new Fill({
+                  color: "rgba(59, 130, 246, 0.2)"
+                }),
+                stroke: new Stroke({
+                  color: "#3b82f6",
+                  width: 2
+                })
+              });
+            }
+          },
+          zIndex: 50
+        })
+      ],
+      overlays: [popupOverlay],
+      view: new View({
+        center: fromLonLat([-7.1, 31.8]),
+        zoom: 6,
+        minZoom: 5,
+        maxZoom: 18
+      })
+    });
+
+    // Notification System
+    const notification = {
+      show: (type, title, message, duration = 3000) => {
+        elements.notification.className = "notification";
+        elements.notification.classList.add(type);
+        elements.notification.classList.add("show");
+        
+        if (type === "success") {
+          elements.notificationIcon.className = "fas fa-check-circle text-emerald-500";
+        } else if (type === "error") {
+          elements.notificationIcon.className = "fas fa-exclamation-circle text-rose-500";
+        } else {
+          elements.notificationIcon.className = "fas fa-info-circle text-primary-500";
+        }
+        
+        elements.notificationTitle.textContent = title;
+        elements.notificationMessage.textContent = message;
+        
+        setTimeout(() => {
+          elements.notification.classList.remove("show");
+        }, duration);
+      }
+    };
+
+    // Drawing Management
+    function toggleDrawing() {
+      if (state.drawInteraction) {
+        stopDrawing();
+      } else {
+        startDrawing();
+      }
+    }
+
+    function startDrawing() {
+      state.isDrawing = true;
+      elements.drawToggle.classList.add("active");
+      elements.drawToggle.innerHTML = '<i class="fas fa-times"></i><span>إيقاف الرسم</span>';
+      
+      drawSource.clear();
+      resultsSource.clear();
+      state.selectedPolygon = null;
+      state.osmData = null;
+      updateUI();
+      
+      const draw = new Draw({
+        source: drawSource,
+        type: "Polygon",
+        style: new Style({
+          fill: new Fill({
+            color: "rgba(59, 130, 246, 0.3)"
+          }),
+          stroke: new Stroke({
+            color: "#3b82f6",
+            width: 3
+          })
+        })
+      });
+      
+      draw.on("drawend", (event) => {
+        const geometry = event.feature.getGeometry();
+        const coords = geometry.getCoordinates()[0];
+        
+        // Calculate area
+        const area = getArea(geometry);
+        state.stats.area = Math.round(area / 1000000); // Convert to km²
+        
+        // Convert to lat/lon array for Overpass
+        const lonLatCoords = coords.map((c) => {
+          const ll = toLonLat(c);
+          return [ll[1], ll[0]]; // [lat, lon]
+        });
+        
+        state.selectedPolygon = lonLatCoords;
+        state.osmData = null;
+        resultsSource.clear();
+        
+        stopDrawing();
+        updateUI();
+        
+        notification.show("success", "تم تحديد المنطقة", `مساحة المنطقة: ${state.stats.area} كم²`);
+      });
+      
+      map.addInteraction(draw);
+      state.drawInteraction = draw;
+    }
+
+    function stopDrawing() {
+      if (state.drawInteraction) {
+        map.removeInteraction(state.drawInteraction);
+        state.drawInteraction = null;
+      }
+      
+      state.isDrawing = false;
+      elements.drawToggle.classList.remove("active");
+      elements.drawToggle.innerHTML = '<i class="fas fa-draw-polygon"></i><span>رسم منطقة</span>';
+    }
+
+    // Data Fetching
+    async function fetchOSMData() {
+      if (!state.selectedPolygon) return;
+      
+      const polyStr = state.selectedPolygon.map(coord => `${coord[0]} ${coord[1]}`).join(" ");
+      const tags = elements.tagsInput.value
+        .split(",")
+        .map(t => t.trim())
+        .filter(t => t.length > 0);
+      
+      let filter = "";
+      if (tags.length === 0) {
+        filter = `nwr(poly:"${polyStr}");`;
+      } else {
+        const tagFilters = tags.map(tag => `nwr["${tag}"](poly:"${polyStr}");`).join("\n");
+        filter = `(\n${tagFilters}\n);`;
+      }
+      
+      const timeout = parseInt(elements.queryTimeout.value);
+      const query = `
+[out:json][timeout:${timeout}];
+${filter}
+out body;
+>;
+out skel qt;
+`;
+      
+      showLoading(true, "جاري إعداد الاستعلام...");
+      
+      try {
+        const url = `https://overpass-api.de/api/interpreter?data=${encodeURIComponent(query)}`;
+        const response = await fetch(url);
+        
+        if (!response.ok) {
+          throw new Error(`خطأ في الخادم: ${response.status}`);
+        }
+        
+        const text = await response.text();
+        
+        showLoading(true, "جاري معالجة البيانات...");
+        
+        let data;
+        try {
+          data = JSON.parse(text);
+        } catch (e) {
+          throw new Error("استجابة غير صالحة من الخادم");
+        }
+        
+        if (data.elements && data.elements.length === 0) {
+          throw new Error("لا توجد بيانات في المنطقة المحددة");
+        }
+        
+        const geojson = osmtogeojson.default ? osmtogeojson.default(data) : osmtogeojson(data);
+        state.osmData = geojson;
+        
+        // Update statistics
+        updateStatistics(geojson);
+        
+        // Add features to map
+        const format = new GeoJSON({ featureProjection: "EPSG:3857" });
+        resultsSource.clear();
+        resultsSource.addFeatures(format.readFeatures(geojson));
+        
+        showLoading(false);
+        updateUI();
+        
+        notification.show(
+          "success",
+          "تم استخراج البيانات",
+          `تم استخراج ${state.stats.points + state.stats.lines + state.stats.polygons} معلم`
+        );
+        
+      } catch (error) {
+        showLoading(false);
+        notification.show("error", "خطأ في الاستخراج", error.message);
+        console.error("Fetch error:", error);
+      }
+    }
+
+    function updateStatistics(geojson) {
+      if (!geojson || !geojson.features) return;
+      
+      state.stats.points = 0;
+      state.stats.lines = 0;
+      state.stats.polygons = 0;
+      
+      geojson.features.forEach(feature => {
+        const type = feature.geometry?.type;
+        if (type === "Point" || type === "MultiPoint") {
+          state.stats.points++;
+        } else if (type === "LineString" || type === "MultiLineString") {
+          state.stats.lines++;
+        } else if (type === "Polygon" || type === "MultiPolygon") {
+          state.stats.polygons++;
+        }
+      });
+      
+      // Update UI
+      elements.pointsCount.textContent = state.stats.points;
+      elements.linesCount.textContent = state.stats.lines;
+      elements.polygonsCount.textContent = state.stats.polygons;
+      elements.featureCount.textContent = state.stats.points + state.stats.lines + state.stats.polygons;
+      
+      // Calculate data size
+      const dataSize = JSON.stringify(geojson).length;
+      const sizeKB = (dataSize / 1024).toFixed(1);
+      elements.totalSize.textContent = `${sizeKB} KB`;
+    }
+
+    // Export Functionality
+    function exportData() {
+      if (!state.osmData) return;
+      
+      const format = elements.exportFormat.value;
+      let data, filename, mimeType;
+      
+      switch (format) {
+        case "json":
+          data = JSON.stringify(state.osmData, null, 2);
+          filename = "osm_data.json";
+          mimeType = "application/json";
+          break;
+        case "kml":
+          // Simple KML conversion
+          data = convertToKML(state.osmData);
+          filename = "osm_data.kml";
+          mimeType = "application/vnd.google-earth.kml+xml";
+          break;
+        case "geojson":
+        default:
+          data = JSON.stringify(state.osmData, null, 2);
+          filename = "osm_data.geojson";
+          mimeType = "application/geo+json";
+      }
+      
+      const blob = new Blob([data], { type: mimeType });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+      
+      notification.show("success", "تم التصدير", `تم حفظ الملف: ${filename}`);
+    }
+
+    function convertToKML(geojson) {
+      // Basic KML conversion - for production use a proper library
+      const features = geojson.features || [];
+      const placemarks = features.map(feature => {
+        const props = feature.properties || {};
+        const name = props.name || "غير مسمى";
+        
+        let coordinates = "";
+        if (feature.geometry?.type === "Point") {
+          const [lng, lat] = feature.geometry.coordinates;
+          coordinates = `${lng},${lat},0`;
+        }
+        
+        return `<Placemark>
+          <name>${escapeXML(name)}</name>
+          <description>${escapeXML(JSON.stringify(props, null, 2))}</description>
+          ${coordinates ? `<Point><coordinates>${coordinates}</coordinates></Point>` : ''}
+        </Placemark>`;
+      }).join("\n");
+      
+      return `<?xml version="1.0" encoding="UTF-8"?>
+<kml xmlns="http://www.opengis.net/kml/2.2">
+  <Document>
+    <name>OSM Data Export</name>
+    ${placemarks}
+  </Document>
+</kml>`;
+    }
+
+    function escapeXML(str) {
+      return str.replace(/[<>&'"]/g, function(c) {
+        switch(c) {
+          case '<': return '&lt;';
+          case '>': return '&gt;';
+          case '&': return '&amp;';
+          case '\'': return '&apos;';
+          case '"': return '&quot;';
+        }
+      });
+    }
+
+    // UI Updates
+    function updateUI() {
+      if (state.selectedPolygon) {
+        elements.areaStatus.textContent = `${state.stats.area} كم²`;
+        elements.areaStatus.className = "text-sm font-medium text-emerald-300";
+        
+        if (state.osmData) {
+          elements.actionBtn.innerHTML = '<i class="fas fa-file-download"></i><span>تحميل البيانات</span>';
+          elements.actionBtn.classList.add("success");
+          elements.hintText.innerHTML = '<i class="fas fa-check-circle mr-1"></i> جاهز للتحميل';
+          elements.hintText.className = "text-xs text-center mt-3 text-emerald-400";
+        } else {
+          elements.actionBtn.innerHTML = '<i class="fas fa-download"></i><span>جلب البيانات</span>';
+          elements.actionBtn.classList.remove("success");
+          elements.hintText.innerHTML = '<i class="fas fa-database mr-1"></i> انقر لجلب البيانات من OSM';
+          elements.hintText.className = "text-xs text-center mt-3 text-sky-400";
+        }
+        
+        elements.actionBtn.disabled = false;
+      } else {
+        elements.areaStatus.textContent = "غير محددة";
+        elements.areaStatus.className = "text-sm font-medium text-amber-300";
+        elements.actionBtn.disabled = true;
+        elements.hintText.innerHTML = '<i class="fas fa-info-circle mr-1"></i> حدد منطقة على الخريطة لبدء الاستخراج';
+        elements.hintText.className = "text-xs text-center mt-3 text-slate-400";
+        elements.actionBtn.classList.remove("success");
+      }
+    }
+
+    // Loading Management
+    function showLoading(show, message = "") {
+      if (show) {
+        elements.loadingOverlay.style.display = "flex";
+        elements.loadingMessage.textContent = message;
+        elements.loadingProgress.style.width = "30%";
+        
+        // Simulate progress updates
+        let progress = 30;
+        const interval = setInterval(() => {
+          if (progress < 90) {
+            progress += 5;
+            elements.loadingProgress.style.width = `${progress}%`;
+          }
+        }, 500);
+        
+        window.loadingInterval = interval;
+      } else {
+        elements.loadingOverlay.style.display = "none";
+        elements.loadingProgress.style.width = "0%";
+        if (window.loadingInterval) {
+          clearInterval(window.loadingInterval);
+        }
+      }
+    }
+
+    // Event Listeners
+    elements.drawToggle.addEventListener("click", toggleDrawing);
+    
+    elements.clearBtn.addEventListener("click", () => {
+      drawSource.clear();
+      resultsSource.clear();
+      popupOverlay.setPosition(undefined);
+      state.selectedPolygon = null;
+      state.osmData = null;
+      state.stats = { points: 0, lines: 0, polygons: 0, area: 0 };
+      stopDrawing();
+      updateUI();
+      updateStatistics({ features: [] });
+      notification.show("info", "تم المسح", "تم حذف جميع البيانات المحددة");
+    });
+    
+    elements.actionBtn.addEventListener("click", async () => {
+      if (!state.selectedPolygon) return;
+      
+      if (state.osmData) {
+        exportData();
+      } else {
+        await fetchOSMData();
+      }
+    });
+    
+    // Tags quick buttons
+    document.querySelectorAll(".tag-preview").forEach(btn => {
+      btn.addEventListener("click", () => {
+        const tag = btn.getAttribute("data-tag");
+        const current = elements.tagsInput.value.split(",").map(t => t.trim()).filter(t => t);
+        
+        if (current.includes(tag)) {
+          elements.tagsInput.value = current.filter(t => t !== tag).join(", ");
+          btn.style.opacity = "0.6";
+        } else {
+          elements.tagsInput.value = [...current, tag].join(", ");
+          btn.style.opacity = "1";
+        }
+      });
+    });
+    
+    // Basemap management
+    elements.basemapToggle.addEventListener("click", (e) => {
+      e.stopPropagation();
+      elements.basemapMenu.style.display = 
+        elements.basemapMenu.style.display === "none" ? "block" : "none";
+    });
+    
+    document.querySelectorAll(".basemap-item").forEach(item => {
+      item.addEventListener("click", (e) => {
+        e.stopPropagation();
+        const index = parseInt(item.getAttribute("data-index"));
+        
+        // Update layers
+        baseLayers.forEach((layer, idx) => {
+          layer.setVisible(idx === index);
+        });
+        
+        // Update UI
+        document.querySelectorAll(".basemap-item").forEach(i => i.classList.remove("active"));
+        item.classList.add("active");
+        
+        elements.basemapMenu.style.display = "none";
+        
+        notification.show("info", "تم تغيير الخلفية", baseLayers[index].get("title"));
+      });
+    });
+    
+    // Fullscreen functionality
+    elements.fullscreenBtn.addEventListener("click", () => {
+      if (!document.fullscreenElement) {
+        elements.map.requestFullscreen?.() || 
+        elements.map.webkitRequestFullscreen?.() || 
+        elements.map.msRequestFullscreen?.();
+        elements.fullscreenBtn.innerHTML = '<i class="fas fa-compress"></i><span>خروج من ملء الشاشة</span>';
+      } else {
+        document.exitFullscreen?.() || 
+        document.webkitExitFullscreen?.() || 
+        document.msExitFullscreen?.();
+        elements.fullscreenBtn.innerHTML = '<i class="fas fa-expand"></i><span>ملء الشاشة</span>';
+      }
+    });
+    
+    // Popup management
+    elements.popupCloser.addEventListener("click", () => {
+      popupOverlay.setPosition(undefined);
+    });
+    
+    map.on("singleclick", (evt) => {
+      let foundFeature = null;
+      map.forEachFeatureAtPixel(evt.pixel, (feature) => {
+        if (feature.get("features")) {
+          foundFeature = feature.get("features")[0];
+        } else {
+          foundFeature = feature;
+        }
+        return true;
+      });
+      
+      if (foundFeature) {
+        const props = foundFeature.getProperties();
+        const { geometry, ...attributes } = props;
+        
+        let content = '<div class="space-y-2">';
+        Object.entries(attributes).forEach(([key, value]) => {
+          if (key !== "geometry" && value) {
+            content += `
+              <div class="property-row">
+                <span class="text-slate-600 font-medium">${key}</span>
+                <span class="text-slate-800 font-semibold">${String(value).substring(0, 50)}${String(value).length > 50 ? '...' : ''}</span>
+              </div>
+            `;
+          }
+        });
+        content += '</div>';
+        
+        elements.popupContent.innerHTML = content;
+        popupOverlay.setPosition(evt.coordinate);
+      }
+    });
+    
+    // Close popup when clicking outside
+    map.on("click", (evt) => {
+      if (!map.hasFeatureAtPixel(evt.pixel)) {
+        popupOverlay.setPosition(undefined);
+      }
+    });
+    
+    // Close basemap menu when clicking outside
+    document.addEventListener("click", () => {
+      elements.basemapMenu.style.display = "none";
+    });
+    
+    // Prevent closing when clicking inside the menu
+    elements.basemapMenu.addEventListener("click", (e) => {
+      e.stopPropagation();
+    });
+    
+    // Initialize
+    updateUI();
+    updateStatistics({ features: [] });
+    
+    // Welcome notification
+    setTimeout(() => {
+      notification.show(
+        "info", 
+        "مرحباً بك في مستخرج بيانات OSM", 
+        "استخدم أداة الرسم لتحديد المنطقة المراد استخراج بياناتها"
+      );
+    }, 1000);
+  </script>
+</body>
+</html>
